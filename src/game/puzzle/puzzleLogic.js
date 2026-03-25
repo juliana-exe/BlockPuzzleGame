@@ -40,7 +40,13 @@ export function clearFilledLines(board) {
     for (let r = 0; r < PUZZLE_SIZE; r++) newBoard[r][c] = null;
   }
 
-  return { board: newBoard, clearedRows: rowsToClear.length, clearedCols: colsToClear.length };
+  return {
+    board: newBoard,
+    clearedRows: rowsToClear.length,
+    clearedCols: colsToClear.length,
+    clearedRowIndexes: rowsToClear,
+    clearedColIndexes: colsToClear,
+  };
 }
 
 export function calcScore(piece, clearedRows, clearedCols) {

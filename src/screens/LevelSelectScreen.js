@@ -41,9 +41,14 @@ export default function LevelSelectScreen({ navigation, route }) {
             Meta: {item.linesTarget} linhas
           </Text>
         ) : (
-          <Text style={[styles.levelInfo, !unlocked && { opacity: 0.4 }]}>
-            Meta: {item.scoreTarget} pts
-          </Text>
+          <>
+            <Text style={[styles.levelInfo, !unlocked && { opacity: 0.4 }]}>
+              Meta: {item.scoreTarget} pts
+            </Text>
+            <Text style={[styles.levelInfo, styles.levelInfoAlt, !unlocked && { opacity: 0.4 }]}>
+              Limite: {item.maxMoves} jogadas
+            </Text>
+          </>
         )}
       </TouchableOpacity>
     );
@@ -107,4 +112,5 @@ const styles = StyleSheet.create({
   lockIcon: { fontSize: 14 },
   levelBadge: { fontSize: 10, marginTop: 2, color: COLORS.textSecondary },
   levelInfo: { fontSize: 10, marginTop: 3, color: COLORS.success, textAlign: 'center' },
+  levelInfoAlt: { color: COLORS.warning, marginTop: 1 },
 });

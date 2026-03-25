@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../../constants/colors';
 import { PUZZLE_CELL, PUZZLE_SIZE } from '../../constants/game';
 import { getRandomPieces } from './puzzlePieces';
+import { PUZZLE_LEVELS } from '../levels';
 import {
   createEmptyBoard, isValidPlacement, placePiece,
   clearFilledLines, calcScore, canAnyPieceBePlaced,
@@ -19,10 +20,12 @@ const TRAY_CELL  = Math.floor(CELL * 0.76);
 const DRAG_SCALE = 1.15; // peça fica maior durante drag (feedback visual)
 
 export default function PuzzleGame({ startLevel = 1, onGameOver }) {
+  const levelConfig = PUZZLE_LEVELS[Math.max(0, startLevel - 1)] || PUZZLE_LEVELS[PUZZLE_LEVELS.length - 1];
   const [board, setBoard]       = useState(createEmptyBoard);
-  const [pieces, setPieces]     = useState(() => getRandomPieces(startLevel));
+  const [pieces, setPieces]     = useState(() => getRandomPieces(startLevel, 3, createEmptyBoard()));
   const [score, setScore]       = useState(0);
   const [combo, setCombo]       = useState(0);
+  const [movesUsed, setMovesUsed] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [dragIdx, setDragIdx]   = useState(-1);
   const [hoverCell, setHoverCell] = useState(null);
@@ -33,6 +36,7 @@ export default function PuzzleGame({ startLevel = 1, onGameOver }) {
   const piecesRef    = useRef(pieces);
   const scoreRef     = useRef(0);
   const comboRef     = useRef(0);
+  const movesRef     = useRef(0);
   const levelRef     = useRef(startLevel);
   const boardOrigin  = useRef({ x: 0, y: 0 });
   const dragAnim     = useRef(new Animated.ValueXY()).current;
@@ -71,22 +75,23 @@ export default function PuzzleGame({ startLevel = 1, onGameOver }) {
     playSound('place'); hapticMedium();
 
     const placed = placePiece(boardRef.current, p, row, col);
-    const { board: cleared, clearedRows, clearedCols } = clearFilledLines(placed);
+    const {
+      board: cleared, clearedRows, clearedCols, clearedRowIndexes, clearedColIndexes,
+    } = clearFilledLines(placed);
 
     const pts        = calcScore(p, clearedRows, clearedCols);
     const newCombo   = (clearedRows + clearedCols) > 0 ? comboRef.current + 1 : 0;
     const comboBonus = newCombo > 1 ? newCombo * 30 : 0;
     const newScore   = scoreRef.current + pts + comboBonus;
+    const newMoves   = movesRef.current + 1;
 
     boardRef.current = cleared;
     scoreRef.current = newScore;
     comboRef.current = newCombo;
+    movesRef.current = newMoves;
 
     if (clearedRows + clearedCols > 0) {
-      flashLines(
-        Array.from({ length: clearedRows }, (_, i) => i), // rows cleared (raw)
-        Array.from({ length: clearedCols }, (_, i) => i), // cols cleared (raw)
-      );
+      flashLines(clearedRowIndexes, clearedColIndexes);
       playSound('clear');
       hapticHeavy();
       const totalCleared = clearedRows + clearedCols;
@@ -102,22 +107,59 @@ export default function PuzzleGame({ startLevel = 1, onGameOver }) {
     const newPieces   = [...piecesRef.current];
     newPieces[pieceIdx] = null;
     const allPlaced   = newPieces.every(x => x === null);
-    const finalPieces = allPlaced ? getRandomPieces(levelRef.current) : newPieces;
+    const finalPieces = allPlaced ? getRandomPieces(levelRef.current, 3, cleared) : newPieces;
 
     piecesRef.current = finalPieces;
     setBoard([...cleared]);
     setScore(newScore);
     setCombo(newCombo);
+    setMovesUsed(newMoves);
     setPieces([...finalPieces]);
+
+    if (newScore >= levelConfig.scoreTarget) {
+      setTimeout(() => {
+        playSound('levelup'); hapticSuccess();
+        onGameOver && onGameOver(newScore, levelRef.current, {
+          won: true,
+          mode: 'puzzle',
+          scoreTarget: levelConfig.scoreTarget,
+          maxMoves: levelConfig.maxMoves,
+          movesUsed: newMoves,
+        });
+      }, 350);
+      return true;
+    }
+
+    if (newMoves >= levelConfig.maxMoves) {
+      setTimeout(() => {
+        playSound('gameover'); hapticError();
+        onGameOver && onGameOver(newScore, levelRef.current, {
+          won: false,
+          mode: 'puzzle',
+          reason: 'out_of_moves',
+          scoreTarget: levelConfig.scoreTarget,
+          maxMoves: levelConfig.maxMoves,
+          movesUsed: newMoves,
+        });
+      }, 300);
+      return true;
+    }
 
     if (!canAnyPieceBePlaced(cleared, finalPieces.filter(Boolean))) {
       setTimeout(() => {
         playSound('gameover'); hapticError();
-        onGameOver && onGameOver(newScore, levelRef.current);
+        onGameOver && onGameOver(newScore, levelRef.current, {
+          won: false,
+          mode: 'puzzle',
+          reason: 'stuck',
+          scoreTarget: levelConfig.scoreTarget,
+          maxMoves: levelConfig.maxMoves,
+          movesUsed: newMoves,
+        });
       }, 300);
     }
     return true;
-  }, [onGameOver, showPopup, flashLines]);
+  }, [onGameOver, showPopup, flashLines, levelConfig.maxMoves, levelConfig.scoreTarget]);
 
   // ── Preview cells ─────────────────────────────────────────────────────────
   const buildPreviewSet = () => {
@@ -200,6 +242,11 @@ export default function PuzzleGame({ startLevel = 1, onGameOver }) {
             <Text style={styles.statValue}>{startLevel}</Text>
           </LinearGradient>
         )}
+      </View>
+
+      <View style={styles.goalRow}>
+        <Text style={styles.goalTxt}>🎯 Meta: {levelConfig.scoreTarget} pts</Text>
+        <Text style={styles.goalTxt}>🧠 Movimentos: {movesUsed}/{levelConfig.maxMoves}</Text>
       </View>
 
       {/* Board */}
@@ -294,7 +341,7 @@ export default function PuzzleGame({ startLevel = 1, onGameOver }) {
 
       {/* Hint */}
       <Text style={styles.hintText}>
-        Arraste as peças para encaixar · Preencha linhas e colunas!
+        {levelConfig.hint}
       </Text>
     </View>
   );
@@ -412,4 +459,12 @@ const styles = StyleSheet.create({
     color: '#2a4a6a', fontSize: 10, textAlign: 'center',
     marginTop: 4, letterSpacing: 0.5,
   },
+  goalRow: {
+    width: '100%',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  goalTxt: { color: '#a8c8ff', fontWeight: '700', fontSize: 11 },
 });
