@@ -20,6 +20,7 @@ export default function HomeScreen({ navigation }) {
   // Animações de entrada
   const fadeAnim  = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
+  const glowAnim  = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Carregar configurações e sons na abertura do app
@@ -37,6 +38,13 @@ export default function HomeScreen({ navigation }) {
       Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.spring(slideAnim, { toValue: 0, speed: 6, bounciness: 8, useNativeDriver: true }),
     ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowAnim, { toValue: 1, duration: 2000, useNativeDriver: true }),
+        Animated.timing(glowAnim, { toValue: 0, duration: 2000, useNativeDriver: true }),
+      ]),
+    ).start();
   }, []);
 
   const go = (screen, params) => {
@@ -49,6 +57,7 @@ export default function HomeScreen({ navigation }) {
       <StatusBar barStyle="light-content" backgroundColor="#0d0d1a" />
 
       <LinearGradient colors={['#0d0d1a', '#111128', '#0a1628']} style={StyleSheet.absoluteFill} />
+      <FloatingBlocks glowAnim={glowAnim} />
 
       <Animated.View style={[styles.container, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
 
@@ -62,6 +71,14 @@ export default function HomeScreen({ navigation }) {
           </View>
           <Text style={styles.title}>BLOCK PUZZLE</Text>
           <Text style={styles.subtitle}>Encaixe · Limpe · Vença</Text>
+        </View>
+
+        <View style={styles.highlightRow}>
+          {['Sem internet', 'Partidas rápidas', 'Controles simples'].map((label) => (
+            <View key={label} style={styles.highlightChip}>
+              <Text style={styles.highlightText}>{label}</Text>
+            </View>
+          ))}
         </View>
 
         {/* Modo Clássico */}
@@ -102,9 +119,52 @@ export default function HomeScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        <LinearGradient colors={['#1f1145', '#0f2445']} style={styles.banner}>
+          <Text style={styles.bannerTitle}>✨ Perfeito para jogar em qualquer pausa</Text>
+          <Text style={styles.bannerSub}>Sessões curtas, progressão contínua e muito desafio.</Text>
+        </LinearGradient>
+
         <Text style={styles.footer}>Funciona 100% offline · Progresso salvo</Text>
       </Animated.View>
     </SafeAreaView>
+  );
+}
+
+function FloatingBlocks({ glowAnim }) {
+  const lift = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -10],
+  });
+  const fade = glowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 0.45],
+  });
+
+  const blocks = [
+    { left: '8%', top: '10%', color: COLORS.I, size: 14 },
+    { right: '9%', top: '20%', color: COLORS.O, size: 12 },
+    { left: '15%', bottom: '25%', color: COLORS.T, size: 11 },
+    { right: '12%', bottom: '18%', color: COLORS.L, size: 13 },
+  ];
+
+  return (
+    <View pointerEvents="none" style={styles.floatingLayer}>
+      {blocks.map((b, i) => (
+        <Animated.View
+          key={i}
+          style={[
+            styles.floatingDot,
+            b,
+            {
+              opacity: fade,
+              width: b.size,
+              height: b.size,
+              transform: [{ translateY: lift }],
+            },
+          ]}
+        />
+      ))}
+    </View>
   );
 }
 
@@ -165,6 +225,12 @@ const styles = StyleSheet.create({
     letterSpacing: 5, textAlign: 'center',
   },
   subtitle: { color: COLORS.textSecondary, fontSize: 12, letterSpacing: 3 },
+  highlightRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8, marginTop: 2 },
+  highlightChip: {
+    borderWidth: 1, borderColor: '#2e4f8a', backgroundColor: '#101f37',
+    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
+  },
+  highlightText: { color: '#9cc3ff', fontSize: 10, fontWeight: '700' },
 
   // Card
   card: {
@@ -200,5 +266,26 @@ const styles = StyleSheet.create({
   secondaryIcon: { fontSize: 20 },
   secondaryTxt: { color: COLORS.text, fontSize: 14, fontWeight: 'bold' },
 
+  banner: {
+    width: '100%',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#3a4e85',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  bannerTitle: { color: '#ffffff', fontWeight: '800', fontSize: 12, letterSpacing: 0.4 },
+  bannerSub: { color: '#b0c7ff', fontSize: 10 },
+
   footer: { color: '#2a3a5a', fontSize: 10 },
+  floatingLayer: { ...StyleSheet.absoluteFillObject },
+  floatingDot: {
+    position: 'absolute',
+    borderRadius: 4,
+    shadowColor: '#fff',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+  },
 });
