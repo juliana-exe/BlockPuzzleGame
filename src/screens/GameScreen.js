@@ -5,6 +5,7 @@ import { COLORS } from '../constants/colors';
 import ClassicGame from '../game/classic/ClassicGame';
 import PuzzleGame from '../game/puzzle/PuzzleGame';
 import { saveClassicScore, savePuzzleScore, saveMaxUnlockedLevel } from '../utils/storage';
+import { CLASSIC_LEVELS, PUZZLE_LEVELS } from '../game/levels';
 
 export default function GameScreen({ navigation, route }) {
   const { mode, level = 1 } = route.params;
@@ -13,13 +14,15 @@ export default function GameScreen({ navigation, route }) {
     if (mode === 'classic') {
       const [score, lvl, lines] = args;
       await saveClassicScore(score, lvl, lines);
-      await saveMaxUnlockedLevel('classic', Math.min(lvl + 1, 20));
+      await saveMaxUnlockedLevel('classic', Math.min(lvl + 1, CLASSIC_LEVELS.length));
       navigation.replace('GameOver', { mode, score, level: lvl, extra: lines });
     } else {
-      const [score, lvl] = args;
+      const [score, lvl, result] = args;
       await savePuzzleScore(score, lvl);
-      await saveMaxUnlockedLevel('puzzle', Math.min(lvl + 1, 30));
-      navigation.replace('GameOver', { mode, score, level: lvl });
+      if (result?.won) {
+        await saveMaxUnlockedLevel('puzzle', Math.min(lvl + 1, PUZZLE_LEVELS.length));
+      }
+      navigation.replace('GameOver', { mode, score, level: lvl, extra: result });
     }
   }, [mode, navigation]);
 

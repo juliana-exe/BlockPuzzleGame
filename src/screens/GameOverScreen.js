@@ -7,10 +7,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
 import { getClassicHighScores, getPuzzleHighScores } from '../utils/storage';
 import { hapticLight } from '../utils/haptics';
+import { PUZZLE_LEVELS } from '../game/levels';
 
 export default function GameOverScreen({ navigation, route }) {
   const { mode, score, level, extra } = route.params;
   const isClassic = mode === 'classic';
+  const puzzleResult = !isClassic && extra && typeof extra === 'object' ? extra : null;
+  const puzzleWon = puzzleResult?.won;
 
   const [highScore, setHighScore] = useState(0);
   const [isNewRecord, setIsNewRecord] = useState(false);
@@ -34,7 +37,7 @@ export default function GameOverScreen({ navigation, route }) {
         {/* Trophy / emoji */}
         <Text style={styles.emoji}>{isNewRecord ? '🏆' : '🎮'}</Text>
 
-        <Text style={styles.title}>FIM DE JOGO</Text>
+        <Text style={styles.title}>{puzzleWon ? 'NÍVEL CONCLUÍDO' : 'FIM DE JOGO'}</Text>
 
         {isNewRecord && (
           <View style={styles.recordBadge}>
@@ -47,6 +50,12 @@ export default function GameOverScreen({ navigation, route }) {
           <StatRow label="Pontuação" value={score} highlight />
           <StatRow label="Nível" value={level} />
           {isClassic && extra !== undefined && <StatRow label="Linhas" value={extra} />}
+          {!!puzzleResult && (
+            <>
+              <StatRow label="Meta" value={puzzleResult.scoreTarget} />
+              <StatRow label="Movimentos" value={`${puzzleResult.movesUsed}/${puzzleResult.maxMoves}`} />
+            </>
+          )}
           <StatRow label="Melhor" value={highScore} />
         </View>
 
@@ -54,9 +63,15 @@ export default function GameOverScreen({ navigation, route }) {
         <View style={styles.buttons}>
           <TouchableOpacity
             style={[styles.btn, { backgroundColor: COLORS.accent }]}
-            onPress={() => { hapticLight(); navigation.replace('Game', { mode, level }); }}
+            onPress={() => {
+              hapticLight();
+              const nextLevel = puzzleWon
+                ? Math.min(level + 1, PUZZLE_LEVELS.length)
+                : level;
+              navigation.replace('Game', { mode, level: nextLevel });
+            }}
           >
-            <Text style={styles.btnTxt}>🔄  JOGAR NOVAMENTE</Text>
+            <Text style={styles.btnTxt}>{puzzleWon ? '⏭️  PRÓXIMO NÍVEL' : '🔄  JOGAR NOVAMENTE'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

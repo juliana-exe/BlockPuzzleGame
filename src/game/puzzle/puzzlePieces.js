@@ -1,5 +1,6 @@
 // Puzzle pieces: array of [row, col] offsets (top-left origin)
 // Ordered by size / complexity for gradual difficulty
+import { canPieceBePlaced } from './puzzleLogic';
 
 export const PUZZLE_PIECES = [
   // 1-cell
@@ -59,9 +60,25 @@ export function getPoolForLevel(level) {
   return EXPERT_POOL;
 }
 
-export function getRandomPieces(level, count = 3) {
+function getPoolWithBias(level) {
+  if (level <= 10) return MEDIUM_POOL;
+  if (level <= 30) return HARD_POOL;
+  return EXPERT_POOL;
+}
+
+export function getRandomPieces(level, count = 3, board = null) {
   const pool = getPoolForLevel(level);
-  return Array.from({ length: count }, () => ({
-    ...pool[Math.floor(Math.random() * pool.length)],
+  const richPool = getPoolWithBias(level);
+  const generated = Array.from({ length: count }, (_, idx) => ({
+    ...(idx === 0 ? richPool[Math.floor(Math.random() * richPool.length)] : pool[Math.floor(Math.random() * pool.length)]),
   }));
+
+  if (!board) return generated;
+  if (generated.some(piece => canPieceBePlaced(board, piece))) return generated;
+
+  const fallback = pool.find(piece => canPieceBePlaced(board, piece));
+  if (fallback) {
+    generated[0] = { ...fallback };
+  }
+  return generated;
 }
